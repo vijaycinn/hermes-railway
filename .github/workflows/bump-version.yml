@@ -1,0 +1,47 @@
+name: Track Hermes releases
+
+on:
+  schedule:
+    # 04:13 UTC daily. GitHub docs: avoid the top of the hour.
+    - cron: "13 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check latest release and bump pin
+        run: |
+          set -euo pipefail
+
+          latest=$(curl -fsSL https://api.github.com/repos/NousResearch/hermes-agent/releases/latest \
+            | python3 -c "import sys,json;print(json.load(sys.stdin)['tag_name'])")
+          echo "latest release: $latest"
+
+          # Release publish can lag the GitHub release by minutes; only bump
+          # when the Docker Hub tag actually exists.
+          if ! curl -fsSL -o /dev/null "https://hub.docker.com/v2/repositories/nousresearch/hermes-agent/tags/$latest"; then
+            echo "image tag $latest not on Docker Hub yet; skipping"
+            exit 0
+          fi
+
+          current=$(grep -oP '^ARG HERMES_IMAGE_TAG=\K.*' Dockerfile)
+          echo "current pin: $current"
+
+          if [ "$latest" = "$current" ]; then
+            echo "already current"
+            exit 0
+          fi
+
+          sed -i "s/^ARG HERMES_IMAGE_TAG=.*/ARG HERMES_IMAGE_TAG=$latest/" Dockerfile
+
+          git config user.name "hermes-release-tracker"
+          git config user.email "actions@users.noreply.github.com"
+          git add Dockerfile
+          git commit -m "chore: track Hermes $latest (auto)"
+          git push origin main
+          echo "bumped to $latest"
