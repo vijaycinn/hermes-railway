@@ -1,6 +1,6 @@
 # Official NousResearch Hermes container + Railway admin layer (server.py).
 # Tracked automatically to upstream releases by .github/workflows/bump-version.yml.
-ARG HERMES_IMAGE_TAG=v2026.9.24
+ARG HERMES_IMAGE_TAG=v0.21.6
 FROM nousresearch/hermes-agent:${HERMES_IMAGE_TAG}
 
 # Build as root; the official image's s6 ENTRYPOINT is overridden below.
